@@ -18,3 +18,17 @@ class CartRepository:
         db.refresh(cart)
 
         return cart
+
+    @staticmethod
+    def get_cart(
+        db: Session,
+        cart_id: int,
+):
+        
+        return (
+            db.query(Cart)
+            .filter(Cart.cart_id == cart_id)
+            .first()
+        )
+    
+    
