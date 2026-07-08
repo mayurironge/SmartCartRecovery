@@ -1,6 +1,5 @@
 from sqlalchemy import Integer, String
-from sqlalchemy.orm import Mapped, mapped_column
-
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.models.base import Base
 
 
@@ -16,3 +15,7 @@ class Customer(Base):
     email: Mapped[str] = mapped_column(String(150), unique=True)
 
     phone: Mapped[str] = mapped_column(String(20))
+    carts = relationship(
+    "Cart",
+    back_populates="customer"
+)
