@@ -37,13 +37,17 @@ def create_cart(
     db: Session = Depends(get_db),
 ):
 
-    cart = CartService.create_cart(
+    cart, created = CartService.create_cart(
         db=db,
         customer_id=request.customer_id,
     )
 
     return {
-        "message": "Cart created successfully",
+        "message": (
+            "Cart created successfully"
+            if created
+            else "Active cart already exists"
+        ),
         "cart_id": cart.cart_id,
     }
 
@@ -61,16 +65,12 @@ def add_product_to_cart(
     db: Session = Depends(get_db),
 ):
 
-    CartItemService.add_product(
+    return CartItemService.add_product(
         db=db,
         cart_id=cart_id,
         product_id=request.product_id,
         quantity=request.quantity,
     )
-
-    return {
-        "message": "Product added to cart successfully"
-    }
 
 
 # -----------------------------
@@ -113,6 +113,10 @@ def update_cart_item(
         quantity=request.quantity,
     )
 
+
+# -----------------------------
+# View Cart
+# -----------------------------
 @router.get(
     "/{cart_id}",
     response_model=CartViewResponse,
@@ -127,6 +131,10 @@ def view_cart(
         cart_id=cart_id,
     )
 
+
+# -----------------------------
+# Empty Cart
+# -----------------------------
 @router.delete(
     "/{cart_id}/items",
     response_model=CartItemResponse,

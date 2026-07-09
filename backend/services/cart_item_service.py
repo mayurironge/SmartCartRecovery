@@ -17,20 +17,26 @@ class CartItemService:
         quantity: int,
     ):
 
-        cart = CartRepository.get_cart(db, cart_id)
+        cart = CartRepository.get_cart(
+            db,
+            cart_id,
+        )
 
         if not cart:
             raise HTTPException(
                 status_code=404,
-                detail="Cart not found"
+                detail="Cart not found",
             )
 
-        product = ProductRepository.get_product(db, product_id)
+        product = ProductRepository.get_product(
+            db,
+            product_id,
+        )
 
         if not product:
             raise HTTPException(
                 status_code=404,
-                detail="Product not found"
+                detail="Product not found",
             )
 
         existing = CartItemRepository.get_cart_item(
@@ -47,7 +53,9 @@ class CartItemService:
                 existing,
             )
 
-            return existing
+            return {
+                "message": "Product quantity updated successfully"
+            }
 
         cart_item = CartItem(
             cart_id=cart_id,
@@ -60,21 +68,26 @@ class CartItemService:
             cart_item,
         )
 
-        return cart_item
+        return {
+            "message": "Product added to cart successfully"
+        }
 
     @staticmethod
     def remove_product(
         db: Session,
         cart_id: int,
         product_id: int,
-):
+    ):
 
-        cart = CartRepository.get_cart(db, cart_id)
+        cart = CartRepository.get_cart(
+            db,
+            cart_id,
+        )
 
         if not cart:
             raise HTTPException(
                 status_code=404,
-                detail="Cart not found"
+                detail="Cart not found",
             )
 
         cart_item = CartItemRepository.get_cart_item(
@@ -86,7 +99,7 @@ class CartItemService:
         if not cart_item:
             raise HTTPException(
                 status_code=404,
-                detail="Product not found in cart"
+                detail="Product not found in cart",
             )
 
         if cart_item.quantity > 1:
@@ -97,8 +110,7 @@ class CartItemService:
             )
 
             return {
-                "message": "Product quantity decreased",
-                "quantity": cart_item.quantity
+                "message": "Product quantity decreased"
             }
 
         CartItemRepository.delete_item(
@@ -109,44 +121,47 @@ class CartItemService:
         return {
             "message": "Product removed from cart"
         }
-    
-        @staticmethod
-        def update_quantity(
-            db: Session,
-            cart_id: int,
-            product_id: int,
-            quantity: int,
+
+    @staticmethod
+    def update_quantity(
+        db: Session,
+        cart_id: int,
+        product_id: int,
+        quantity: int,
     ):
 
-            cart = CartRepository.get_cart(db, cart_id)
+        cart = CartRepository.get_cart(
+            db,
+            cart_id,
+        )
 
-            if not cart:
-                raise HTTPException(
-                    status_code=404,
-                    detail="Cart not found"
-                )
-
-            cart_item = CartItemRepository.get_cart_item(
-                db,
-                cart_id,
-                product_id,
+        if not cart:
+            raise HTTPException(
+                status_code=404,
+                detail="Cart not found",
             )
 
-            if not cart_item:
-                raise HTTPException(
-                    status_code=404,
-                    detail="Product not found in cart"
-                )
+        cart_item = CartItemRepository.get_cart_item(
+            db,
+            cart_id,
+            product_id,
+        )
 
-            CartItemRepository.update_quantity(
-                db,
-                cart_item,
-                quantity,
+        if not cart_item:
+            raise HTTPException(
+                status_code=404,
+                detail="Product not found in cart",
             )
 
-            return {
-                "message": "Quantity updated successfully"
-            }
+        CartItemRepository.update_quantity(
+            db,
+            cart_item,
+            quantity,
+        )
+
+        return {
+            "message": "Quantity updated successfully"
+        }
 
     @staticmethod
     def empty_cart(
@@ -162,7 +177,7 @@ class CartItemService:
         if not cart:
             raise HTTPException(
                 status_code=404,
-                detail="Cart not found"
+                detail="Cart not found",
             )
 
         CartItemRepository.empty_cart(

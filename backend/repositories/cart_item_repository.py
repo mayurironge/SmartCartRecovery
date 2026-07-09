@@ -98,3 +98,16 @@ class CartItemRepository:
         )
 
         db.commit()
+
+    @staticmethod
+    def get_cart_items(
+        db: Session,
+        cart_id: int,
+):
+        return (
+            db.query(CartItem)
+            .filter(
+                CartItem.cart_id == cart_id
+            )
+            .all()
+        )

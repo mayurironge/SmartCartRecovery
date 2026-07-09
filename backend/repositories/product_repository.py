@@ -1,3 +1,5 @@
+from itertools import product
+
 from sqlalchemy.orm import Session
 
 from backend.models.product import Product
@@ -23,3 +25,11 @@ class ProductRepository:
             .filter(Product.product_id == product_id)
             .first()
         )
+    
+    @staticmethod
+    def update_stock(
+        db: Session,
+        product,
+        quantity: int,
+):
+        product.stock -= quantity

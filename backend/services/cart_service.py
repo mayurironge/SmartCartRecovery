@@ -1,20 +1,47 @@
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from backend.repositories.cart_repository import CartRepository
-from fastapi import HTTPException
+from backend.repositories.customer_repository import CustomerRepository
 
-from backend.repositories.cart_repository import CartRepository
-from backend.repositories.cart_item_repository import CartItemRepository
 
 class CartService:
 
     @staticmethod
-    def create_cart(db: Session, customer_id: int):
+    def create_cart(
+        db: Session,
+        customer_id: int,
+    ):
 
-        return CartRepository.create_cart(
+        # Check whether customer exists
+        customer = CustomerRepository.get_customer(
             db=db,
-            customer_id=customer_id
+            customer_id=customer_id,
         )
+
+        if not customer:
+            raise HTTPException(
+                status_code=404,
+                detail="Customer not found",
+            )
+
+        # Check whether customer already has an active cart
+        existing_cart = CartRepository.get_active_cart(
+            db=db,
+            customer_id=customer_id,
+        )
+
+        if existing_cart:
+            return existing_cart, False
+
+        # Create a new cart
+        new_cart = CartRepository.create_cart(
+            db=db,
+            customer_id=customer_id,
+        )
+
+        return new_cart, True
+
     @staticmethod
     def view_cart(
         db: Session,
@@ -22,32 +49,25 @@ class CartService:
 ):
 
         cart = CartRepository.get_cart(
-            db,
-            cart_id,
+            db=db,
+            cart_id=cart_id,
         )
 
         if not cart:
             raise HTTPException(
                 status_code=404,
-                detail="Cart not found"
+                detail="Cart not found",
             )
 
-        items = CartItemRepository.get_cart_items(
-            db,
-            cart_id,
-        )
+        items = []
+        total_amount = 0
 
-        response_items = []
-
-        total = 0
-
-        for item in items:
+        for item in cart.items:
 
             subtotal = float(item.product.price) * item.quantity
+            total_amount += subtotal
 
-            total += subtotal
-
-            response_items.append(
+            items.append(
                 {
                     "product_id": item.product.product_id,
                     "product_name": item.product.product_name,
@@ -61,8 +81,6 @@ class CartService:
             "cart_id": cart.cart_id,
             "customer_id": cart.customer_id,
             "status": cart.status,
-            "items": response_items,
-            "total_amount": total,
+            "items": items,
+            "total_amount": total_amount,
         }
-    
-    
