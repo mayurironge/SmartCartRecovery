@@ -33,3 +33,11 @@ class ProductRepository:
         quantity: int,
 ):
         product.stock -= quantity
+
+    @staticmethod
+    def restore_stock(
+        db: Session,
+        product,
+        quantity: int,
+):
+        product.stock += quantity
