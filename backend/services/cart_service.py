@@ -1,6 +1,6 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-
+from backend.repositories.cart_event_repository import CartEventRepository
 from backend.repositories.cart_repository import CartRepository
 from backend.repositories.customer_repository import CustomerRepository
 
@@ -12,7 +12,7 @@ class CartService:
         db: Session,
         customer_id: int,
     ):
-
+        
         # Check whether customer exists
         customer = CustomerRepository.get_customer(
             db=db,
@@ -39,6 +39,12 @@ class CartService:
             db=db,
             customer_id=customer_id,
         )
+
+        CartEventRepository.create_event(
+            db=db,
+            cart_id=new_cart.cart_id,
+            event_type="CART_CREATED",
+)
 
         return new_cart, True
 

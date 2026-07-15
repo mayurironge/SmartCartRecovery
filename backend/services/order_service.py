@@ -1,6 +1,6 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-
+from backend.repositories.cart_event_repository import CartEventRepository
 from backend.repositories.cart_repository import CartRepository
 from backend.repositories.cart_item_repository import CartItemRepository
 from backend.repositories.product_repository import ProductRepository
@@ -95,7 +95,19 @@ class OrderService:
                 status="CHECKED_OUT",
             )
 
+            CartRepository.update_status(
+                db=db,
+                cart=cart,
+                status="CHECKED_OUT",
+            )
+
             OrderRepository.commit(db)
+
+            CartEventRepository.create_event(
+                db=db,
+                cart_id=cart.cart_id,
+                event_type="CHECKOUT_COMPLETED",
+            )
 
             return order
 
@@ -103,6 +115,7 @@ class OrderService:
             OrderRepository.rollback(db)
             raise
 
+       
     @staticmethod
     def get_all_orders(
         db: Session,
@@ -319,6 +332,12 @@ class OrderService:
             )
 
             OrderRepository.commit(db)
+
+            CartEventRepository.create_event(
+                db=db,
+                cart_id=order.cart_id,
+                event_type="ORDER_CANCELLED",
+            )
 
             return {
                 "message": "Order cancelled successfully",

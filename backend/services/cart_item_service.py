@@ -1,6 +1,6 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-
+from backend.repositories.cart_event_repository import CartEventRepository
 from backend.models.cart_item import CartItem
 from backend.repositories.cart_item_repository import CartItemRepository
 from backend.repositories.cart_repository import CartRepository
@@ -53,6 +53,12 @@ class CartItemService:
                 existing,
             )
 
+            CartEventRepository.create_event(
+                db=db,
+                cart_id=cart.cart_id,
+                event_type="PRODUCT_ADDED",
+            )
+
             return {
                 "message": "Product quantity updated successfully"
             }
@@ -68,10 +74,15 @@ class CartItemService:
             cart_item,
         )
 
+        CartEventRepository.create_event(
+            db=db,
+            cart_id=cart.cart_id,
+            event_type="PRODUCT_ADDED",
+        )
+
         return {
             "message": "Product added to cart successfully"
         }
-
     @staticmethod
     def remove_product(
         db: Session,
@@ -109,6 +120,12 @@ class CartItemService:
                 cart_item,
             )
 
+            CartEventRepository.create_event(
+                db=db,
+                cart_id=cart_id,
+                event_type="PRODUCT_REMOVED",
+            )
+
             return {
                 "message": "Product quantity decreased"
             }
@@ -118,10 +135,15 @@ class CartItemService:
             cart_item,
         )
 
+        CartEventRepository.create_event(
+            db=db,
+            cart_id=cart_id,
+            event_type="PRODUCT_REMOVED",
+        )
+
         return {
             "message": "Product removed from cart"
         }
-
     @staticmethod
     def update_quantity(
         db: Session,
@@ -159,10 +181,19 @@ class CartItemService:
             quantity,
         )
 
+        CartEventRepository.create_event(
+            db=db,
+            cart_id=cart_id,
+            event_type="QUANTITY_UPDATED",
+        )
+
         return {
             "message": "Quantity updated successfully"
         }
 
+
+   
+    
     @staticmethod
     def empty_cart(
         db: Session,
@@ -183,6 +214,12 @@ class CartItemService:
         CartItemRepository.empty_cart(
             db,
             cart_id,
+        )
+
+        CartEventRepository.create_event(
+            db=db,
+            cart_id=cart_id,
+            event_type="CART_EMPTIED",
         )
 
         return {

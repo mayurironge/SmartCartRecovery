@@ -32,8 +32,12 @@ def checkout(
     )
 
     return {
-        "message": "Order placed successfully",
         "order_id": order.order_id,
+        "customer_id": order.customer_id,
+        "cart_id": order.cart_id,
+        "total_amount": float(order.total_amount),
+        "order_status": order.status,
+        "ordered_at": order.order_date,
     }
 
 @router.get(
