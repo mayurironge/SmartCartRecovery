@@ -18,4 +18,9 @@ class Customer(Base):
     carts = relationship(
     "Cart",
     back_populates="customer"
+
+)
+    notifications = relationship(
+    "Notification",
+    back_populates="customer",
 )

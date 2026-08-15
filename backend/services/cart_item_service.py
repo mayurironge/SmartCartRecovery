@@ -53,6 +53,11 @@ class CartItemService:
                 existing,
             )
 
+            CartRepository.touch_cart(
+                db=db,
+                cart=cart,
+            )
+
             CartEventRepository.create_event(
                 db=db,
                 cart_id=cart.cart_id,
@@ -72,6 +77,11 @@ class CartItemService:
         CartItemRepository.add_item(
             db,
             cart_item,
+        )
+
+        CartRepository.touch_cart(
+            db=db,
+            cart=cart,
         )
 
         CartEventRepository.create_event(
@@ -120,6 +130,11 @@ class CartItemService:
                 cart_item,
             )
 
+            CartRepository.touch_cart(
+                db=db,
+                cart=cart,
+            )
+
             CartEventRepository.create_event(
                 db=db,
                 cart_id=cart_id,
@@ -133,6 +148,11 @@ class CartItemService:
         CartItemRepository.delete_item(
             db,
             cart_item,
+        )
+
+        CartRepository.touch_cart(
+            db=db,
+            cart=cart,
         )
 
         CartEventRepository.create_event(
@@ -181,6 +201,11 @@ class CartItemService:
             quantity,
         )
 
+        CartRepository.touch_cart(
+            db=db,
+            cart=cart,
+        )
+
         CartEventRepository.create_event(
             db=db,
             cart_id=cart_id,
@@ -214,6 +239,11 @@ class CartItemService:
         CartItemRepository.empty_cart(
             db,
             cart_id,
+        )
+
+        CartRepository.touch_cart(
+            db=db,
+            cart=cart,
         )
 
         CartEventRepository.create_event(

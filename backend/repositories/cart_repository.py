@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-
+from datetime import datetime
 from backend.models.cart import Cart
 
 
@@ -72,3 +72,14 @@ class CartRepository:
     ):
 
         cart.status = status
+
+    @staticmethod
+    def touch_cart(
+        db: Session,
+        cart: Cart,
+    ):
+        cart.updated_at = datetime.utcnow()
+        db.commit()
+        db.refresh(cart)
+
+        return cart

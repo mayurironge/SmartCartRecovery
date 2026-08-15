@@ -95,3 +95,17 @@ class CartRecoveryRepository:
         db.refresh(recovery)
 
         return recovery
+
+    @staticmethod
+    def mark_as_notified(
+        db: Session,
+        recovery: CartRecovery,
+):
+
+        recovery.recovery_status = "NOTIFIED"
+        recovery.notified_at = datetime.now(timezone.utc)
+
+        db.commit()
+        db.refresh(recovery)
+
+        return recovery

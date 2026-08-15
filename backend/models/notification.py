@@ -11,37 +11,41 @@ class Notification(Base):
 
     notification_id: Mapped[int] = mapped_column(
         Integer,
-        primary_key=True
+        primary_key=True,
     )
 
-    customer_id: Mapped[int | None] = mapped_column(
+    customer_id: Mapped[int] = mapped_column(
+        Integer,
         ForeignKey("customers.customer_id"),
-        nullable=True
+        nullable=True,
+    )
+
+    recovery_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("cart_recovery.recovery_id"),
+        nullable=True,
     )
 
     channel: Mapped[str | None] = mapped_column(
         String,
-        nullable=True
+        nullable=True,
     )
 
     message: Mapped[str | None] = mapped_column(
         Text,
-        nullable=True
+        nullable=True,
     )
 
     sent: Mapped[bool | None] = mapped_column(
         Boolean,
         default=False,
-        nullable=True
     )
 
-    created_at: Mapped[datetime | None] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=datetime.utcnow,
-        nullable=True
     )
 
-    customer = relationship(
-        "Customer",
-        back_populates="notifications"
-    )
+    customer = relationship("Customer")
+
+    recovery = relationship("CartRecovery")
