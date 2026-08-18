@@ -9,7 +9,7 @@ from backend.repositories.notification_repository import (
 )
 
 from backend.services.notification_sender import (
-    MockNotificationSender
+    EmailNotificationSender
 )
 
 
@@ -54,13 +54,13 @@ class CartRecoveryService:
             )
 
             # 3. Send notification
-            sent_successfully = MockNotificationSender.send_email(
-                customer_id=cart.customer_id,
-                message=notification.message,
-            )
-
+            email_sent = EmailNotificationSender.send_email(
+                recipient_email=cart.customer.email,
+                subject="You left items in your cart.",
+                message="You left items in your cart.",
+)
             # 4. Update database only if sending succeeds
-            if sent_successfully:
+            if email_sent:
 
                 # Mark notification as sent
                 notification = NotificationRepository.mark_as_sent(
