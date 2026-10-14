@@ -1,15 +1,13 @@
 from sqlalchemy.orm import Session
 
 from backend.repositories.cart_recovery_repository import (
-    CartRecoveryRepository
+    CartRecoveryRepository,
 )
-
 from backend.repositories.notification_repository import (
-    NotificationRepository
+    NotificationRepository,
 )
-
 from backend.services.notification_sender import (
-    EmailNotificationSender
+    EmailNotificationSender,
 )
 
 
@@ -20,7 +18,6 @@ class CartRecoveryService:
         db: Session,
         threshold_minutes: int = 30,
     ):
-
         abandoned_carts = (
             CartRecoveryRepository.get_abandoned_carts(
                 db=db,
@@ -31,48 +28,51 @@ class CartRecoveryService:
         detected = []
 
         for entry in abandoned_carts:
-
             cart = entry["cart"]
             last_activity = entry["last_activity"]
+            recovery = entry["recovery"]
 
-            # 1. Create recovery record
-            recovery = (
-                CartRecoveryRepository.create_recovery(
+            # Reuse an unfinished recovery instead of creating a duplicate.
+            if recovery is None:
+                recovery = CartRecoveryRepository.create_recovery(
                     db=db,
                     cart_id=cart.cart_id,
                     recovery_status="DETECTED",
                 )
-            )
 
-            # 2. Create notification linked to this recovery
-            notification = NotificationRepository.create_notification(
+            # Reuse the existing notification when retrying.
+            notification = NotificationRepository.get_by_recovery(
                 db=db,
-                customer_id=cart.customer_id,
                 recovery_id=recovery.recovery_id,
-                channel="EMAIL",
-                message="You left items in your cart.",
             )
 
-            # 3. Send notification
-            email_sent = EmailNotificationSender.send_email(
-                recipient_email=cart.customer.email,
-                subject="You left items in your cart.",
-                message="You left items in your cart.",
-)
-            # 4. Update database only if sending succeeds
-            if email_sent:
-
-                # Mark notification as sent
-                notification = NotificationRepository.mark_as_sent(
+            if notification is None:
+                notification = NotificationRepository.create_notification(
                     db=db,
-                    notification=notification,
+                    customer_id=cart.customer_id,
+                    recovery_id=recovery.recovery_id,
+                    channel="EMAIL",
+                    message="You left items in your cart.",
                 )
 
-                # Mark recovery as notified
-                recovery = CartRecoveryRepository.mark_as_notified(
-                    db=db,
-                    recovery=recovery,
+            # Only attempt delivery if the notification has not been sent.
+            if not notification.sent:
+                email_sent = EmailNotificationSender.send_email(
+                    recipient_email=cart.customer.email,
+                    subject="You left items in your cart.",
+                    message="You left items in your cart.",
                 )
+
+                if email_sent:
+                    notification = NotificationRepository.mark_as_sent(
+                        db=db,
+                        notification=notification,
+                    )
+
+                    recovery = CartRecoveryRepository.mark_as_notified(
+                        db=db,
+                        recovery=recovery,
+                    )
 
             detected.append(
                 {
