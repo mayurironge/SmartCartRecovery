@@ -29,7 +29,9 @@ RECOVERY_THRESHOLD_MINUTES=2 docker compose up -d     # bash
 $env:RECOVERY_THRESHOLD_MINUTES=2; docker compose up -d   # PowerShell
 ```
 
-Reminder emails need `SMTP_*` values in the project's `.env`.
+Reminder emails need `SMTP_*` values in the project's `.env`. Add
+`GEMINI_API_KEY` (free from https://aistudio.google.com/apikey) to have
+Gemini write each email; without it a plain template email is sent.
 
 Stop with `docker compose down`. Data is kept in a Docker volume;
 `docker compose down -v` deletes it and recreates the database from
