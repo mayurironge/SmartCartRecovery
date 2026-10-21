@@ -13,3 +13,6 @@ SMTP_HOST = os.getenv("SMTP_HOST")
 SMTP_PORT = os.getenv("SMTP_PORT")
 SMTP_USERNAME = os.getenv("SMTP_USERNAME")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+
+# Minutes without cart activity before a cart counts as abandoned.
+RECOVERY_THRESHOLD_MINUTES = int(os.getenv("RECOVERY_THRESHOLD_MINUTES", "30"))
