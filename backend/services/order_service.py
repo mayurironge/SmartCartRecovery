@@ -1,11 +1,21 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
+
+from backend.constants import cart_events, cart_status
+from backend.constants.order_status import (
+    ALL_STATUSES,
+    ALLOWED_TRANSITIONS,
+    CANCELLED,
+)
 from backend.repositories.cart_event_repository import CartEventRepository
 from backend.repositories.cart_repository import CartRepository
 from backend.repositories.cart_item_repository import CartItemRepository
 from backend.repositories.product_repository import ProductRepository
 from backend.repositories.order_repository import OrderRepository
 from backend.repositories.customer_repository import CustomerRepository
+from backend.repositories.cart_recovery_repository import (
+    CartRecoveryRepository,
+)
 
 class OrderService:
 
@@ -41,6 +51,7 @@ class OrderService:
                 )
 
             total_amount = 0
+            products = {}
 
             # Validate stock and calculate total
             for item in cart_items:
@@ -49,6 +60,14 @@ class OrderService:
                     db=db,
                     product_id=item.product_id,
                 )
+
+                if not product:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Product {item.product_id} is no longer available",
+                    )
+
+                products[item.product_id] = product
 
                 if product.stock < item.quantity:
                     raise HTTPException(
@@ -69,10 +88,7 @@ class OrderService:
             # Copy items to order and reduce stock
             for item in cart_items:
 
-                product = ProductRepository.get_product(
-                    db=db,
-                    product_id=item.product_id,
-                )
+                product = products[item.product_id]
 
                 OrderRepository.add_order_item(
                     db=db,
@@ -92,22 +108,21 @@ class OrderService:
             CartRepository.update_status(
                 db=db,
                 cart=cart,
-                status="CHECKED_OUT",
+                status=cart_status.CHECKED_OUT,
             )
 
-            CartRepository.update_status(
+            CartRecoveryRepository.close_for_checkout(
                 db=db,
-                cart=cart,
-                status="CHECKED_OUT",
+                cart_id=cart.cart_id,
             )
-
-            OrderRepository.commit(db)
 
             CartEventRepository.create_event(
                 db=db,
                 cart_id=cart.cart_id,
-                event_type="CHECKOUT_COMPLETED",
+                event_type=cart_events.CHECKOUT_COMPLETED,
             )
+
+            OrderRepository.commit(db)
 
             return order
 
@@ -236,25 +251,22 @@ class OrderService:
                 detail="Order not found",
             )
 
-        allowed_transitions = {
-            "PLACED": [
-                "PROCESSING",
-                "CANCELLED",
-            ],
-            "PROCESSING": [
-                "SHIPPED",
-                "CANCELLED",
-            ],
-            "SHIPPED": [
-                "DELIVERED",
-            ],
-            "DELIVERED": [],
-            "CANCELLED": [],
-        }
+        if order_status not in ALL_STATUSES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid order status: {order_status}",
+            )
+
+        # Cancelling must also restore stock.
+        if order_status == CANCELLED:
+            return OrderService.cancel_order(
+                db=db,
+                order_id=order_id,
+            )
 
         current_status = order.status
 
-        if order_status not in allowed_transitions[current_status]:
+        if order_status not in ALLOWED_TRANSITIONS.get(current_status, []):
             raise HTTPException(
                 status_code=400,
                 detail=(
@@ -297,17 +309,17 @@ class OrderService:
                 )
 
             # Cannot cancel twice
-            if order.status == "CANCELLED":
+            if order.status == CANCELLED:
                 raise HTTPException(
                     status_code=400,
                     detail="Order is already cancelled",
                 )
 
-            # Cannot cancel delivered orders
-            if order.status == "DELIVERED":
+            # Same rule as status transitions: only before shipping
+            if CANCELLED not in ALLOWED_TRANSITIONS.get(order.status, []):
                 raise HTTPException(
                     status_code=400,
-                    detail="Delivered orders cannot be cancelled",
+                    detail=f"{order.status} orders cannot be cancelled",
                 )
 
             # Restore inventory
@@ -325,19 +337,18 @@ class OrderService:
                 )
 
             # Update status
-            OrderRepository.update_order_status(
+            OrderRepository.cancel_order(
                 db=db,
                 order=order,
-                order_status="CANCELLED",
             )
-
-            OrderRepository.commit(db)
 
             CartEventRepository.create_event(
                 db=db,
                 cart_id=order.cart_id,
-                event_type="ORDER_CANCELLED",
+                event_type=cart_events.ORDER_CANCELLED,
             )
+
+            OrderRepository.commit(db)
 
             return {
                 "message": "Order cancelled successfully",
@@ -360,15 +371,7 @@ class OrderService:
 ):
 
         # 1. Validate order status
-        valid_statuses = [
-            "PLACED",
-            "PROCESSING",
-            "SHIPPED",
-            "DELIVERED",
-            "CANCELLED",
-        ]
-
-        if status and status not in valid_statuses:
+        if status and status not in ALL_STATUSES:
             raise HTTPException(
                 status_code=400,
                 detail=(

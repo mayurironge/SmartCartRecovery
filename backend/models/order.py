@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from backend.constants import order_status
 from backend.models.base import Base
 
 
@@ -28,7 +29,7 @@ class Order(Base):
 
     status: Mapped[str] = mapped_column(
         String(20),
-        default="PLACED"
+        default=order_status.PLACED
     )
 
     order_date: Mapped[datetime] = mapped_column(

@@ -1,5 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
+
+from backend.constants import cart_events
 from backend.repositories.cart_event_repository import CartEventRepository
 from backend.repositories.cart_repository import CartRepository
 from backend.repositories.customer_repository import CustomerRepository
@@ -43,8 +45,10 @@ class CartService:
         CartEventRepository.create_event(
             db=db,
             cart_id=new_cart.cart_id,
-            event_type="CART_CREATED",
-)
+            event_type=cart_events.CART_CREATED,
+        )
+
+        db.commit()
 
         return new_cart, True
 

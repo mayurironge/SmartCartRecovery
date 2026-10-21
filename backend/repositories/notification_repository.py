@@ -1,7 +1,8 @@
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.models.notification import Notification
-from sqlalchemy.exc import IntegrityError
+
 
 class NotificationRepository:
 
@@ -13,10 +14,8 @@ class NotificationRepository:
         return (
             db.query(Notification)
             .filter(Notification.recovery_id == recovery_id)
-            .order_by(Notification.notification_id.desc())
             .first()
         )
-
 
     @staticmethod
     def create_notification(
@@ -35,15 +34,14 @@ class NotificationRepository:
         )
 
         try:
-            db.add(notification)
-            db.commit()
-            db.refresh(notification)
+            # A savepoint keeps a duplicate from rolling back the caller's work.
+            with db.begin_nested():
+                db.add(notification)
+
             return notification
 
         except IntegrityError:
-            db.rollback()
-
-            # Another request may have created this notification first.
+            # Another run created the notification for this recovery first.
             existing = NotificationRepository.get_by_recovery(
                 db=db,
                 recovery_id=recovery_id,
@@ -55,15 +53,11 @@ class NotificationRepository:
             # Preserve unrelated database errors.
             raise
 
-
     @staticmethod
     def mark_as_sent(
         db: Session,
         notification: Notification,
     ):
         notification.sent = True
-
-        db.commit()
-        db.refresh(notification)
 
         return notification

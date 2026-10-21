@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Integer, String, Text, Boolean, DateTime, ForeignKey
+from sqlalchemy import Integer, String, Text, Boolean, DateTime, ForeignKey, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.models.base import Base
@@ -8,6 +8,15 @@ from backend.models.base import Base
 
 class Notification(Base):
     __tablename__ = "notifications"
+
+    # One notification per recovery, so retries reuse it.
+    __table_args__ = (
+        Index(
+            "uq_notifications_recovery_id",
+            "recovery_id",
+            unique=True,
+        ),
+    )
 
     notification_id: Mapped[int] = mapped_column(
         Integer,

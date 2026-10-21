@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 
-from backend.models import order
+from backend.constants.order_status import CANCELLED, PLACED
+
 from backend.models.order import Order
 from backend.models.order_item import OrderItem
 
@@ -19,7 +20,7 @@ class OrderRepository:
             customer_id=customer_id,
             cart_id=cart_id,
             total_amount=total_amount,
-            status="PLACED",
+            status=PLACED,
         )
 
         db.add(order)
@@ -76,7 +77,7 @@ class OrderRepository:
         db: Session,
         order: Order,
 ):
-        order.status = "CANCELLED"
+        order.status = CANCELLED
 
 
     @staticmethod
