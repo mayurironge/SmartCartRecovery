@@ -10,6 +10,7 @@ cffi==2.1.1
 charset-normalizer==3.4.7
 click==8.4.2
 colorama==0.4.6
+confluent-kafka==2.15.1
 cryptography==50.0.2
 distro==1.9.0
 dnspython==2.8.0

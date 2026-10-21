@@ -9,6 +9,7 @@
 # API:       http://localhost:8000/docs
 # Airflow:   http://localhost:8080
 # Dashboard: http://localhost:8501
+# Kafka from your machine: localhost:9094
 # Postgres from your machine: localhost:5433 (user/password: postgres)
 
 name: smartcart
@@ -51,11 +52,63 @@ services:
       DB_USER: postgres
       DB_PASSWORD: postgres
       RECOVERY_THRESHOLD_MINUTES: ${RECOVERY_THRESHOLD_MINUTES:-30}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
+      # Started first, but the API keeps working if Kafka is down.
+      kafka:
+        condition: service_started
+
+  kafka:
+    image: apache/kafka:4.3.1
+    environment:
+      # One node acting as both broker and controller (KRaft, no ZooKeeper).
+      CLUSTER_ID: aNrBgzc3TciiqL488_UqTA
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      # kafka:9092 for containers, localhost:9094 for tools on this machine.
+      KAFKA_LISTENERS: INTERNAL://:9092,CONTROLLER://:9093,EXTERNAL://:9094
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      # A single broker can only keep one copy of each partition.
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      # Keep events for 7 days; cap memory for a small laptop.
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_HEAP_OPTS: -Xms256m -Xmx512m
+    ports:
+      - "127.0.0.1:9094:9094"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
+
+  abandonment-consumer:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: ["python", "-m", "streaming.abandonment_consumer"]
+    # Talks only to Kafka and the API; no database or email secrets.
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SMART_CART_API_URL: http://api:8000
+      RECOVERY_THRESHOLD_MINUTES: ${RECOVERY_THRESHOLD_MINUTES:-30}
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      api:
+        condition: service_started
 
   dashboard:
     build:

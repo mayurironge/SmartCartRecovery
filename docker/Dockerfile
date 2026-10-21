@@ -14,6 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend ./backend
 COPY genai ./genai
 COPY dashboard ./dashboard
+COPY streaming ./streaming
 
 EXPOSE 8000 8501
 
