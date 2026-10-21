@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from backend.config.settings import RECOVERY_THRESHOLD_MINUTES
 from backend.database import get_db
 from backend.services.cart_recovery_service import (
     CartRecoveryService
@@ -21,4 +22,5 @@ def detect_abandoned_carts(
 
     return CartRecoveryService.detect_abandoned_carts(
         db=db,
+        threshold_minutes=RECOVERY_THRESHOLD_MINUTES,
     )
