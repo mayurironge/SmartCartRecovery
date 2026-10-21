@@ -13,7 +13,8 @@ router = APIRouter(
 )
 
 
-@router.get("/detect")
+# POST because detection creates recoveries and sends emails.
+@router.post("/detect")
 def detect_abandoned_carts(
     db: Session = Depends(get_db),
 ):

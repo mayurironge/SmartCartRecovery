@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy import ForeignKey, Integer, String, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from backend.constants import cart_status
 from backend.models.base import Base
 
 
@@ -20,7 +21,7 @@ class Cart(Base):
 
     status: Mapped[str] = mapped_column(
         String(20),
-        default="ACTIVE"
+        default=cart_status.ACTIVE
     )
 
     created_at: Mapped[datetime] = mapped_column(

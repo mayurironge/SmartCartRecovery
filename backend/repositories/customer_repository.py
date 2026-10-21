@@ -11,8 +11,7 @@ class CustomerRepository:
         customer: Customer,
     ):
         db.add(customer)
-        db.commit()
-        db.refresh(customer)
+        db.flush()
 
         return customer
 
