@@ -16,3 +16,10 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 
 # Minutes without cart activity before a cart counts as abandoned.
 RECOVERY_THRESHOLD_MINUTES = int(os.getenv("RECOVERY_THRESHOLD_MINUTES", "30"))
+
+# Gemini writes the recovery emails; without a key a plain template is used.
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+
+# Shown before prices in recovery emails.
+CURRENCY_SYMBOL = os.getenv("CURRENCY_SYMBOL", "₹")

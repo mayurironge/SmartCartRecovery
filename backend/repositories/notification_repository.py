@@ -23,12 +23,14 @@ class NotificationRepository:
         customer_id: int,
         recovery_id: int,
         channel: str,
+        subject: str,
         message: str,
     ):
         notification = Notification(
             customer_id=customer_id,
             recovery_id=recovery_id,
             channel=channel,
+            subject=subject,
             message=message,
             sent=False,
         )
