@@ -4,3 +4,33 @@ An end-to-end Data Engineering and GenAI project built using Python, SQL, FastAP
 
 ## Status
 🚧 In Development
+
+## Run locally with Docker
+
+Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/).
+
+```
+cd docker
+docker compose up -d --build
+```
+
+| Service | URL |
+|---|---|
+| API docs (Swagger) | http://localhost:8000/docs |
+| Airflow | http://localhost:8080 |
+| Postgres | `localhost:5433`, user/password `postgres` |
+
+The `cart_recovery` DAG calls `POST /cart-recovery/detect` every 15 minutes.
+A cart counts as abandoned after 30 minutes without activity; for a quick
+demo, start with a shorter threshold:
+
+```
+RECOVERY_THRESHOLD_MINUTES=2 docker compose up -d     # bash
+$env:RECOVERY_THRESHOLD_MINUTES=2; docker compose up -d   # PowerShell
+```
+
+Reminder emails need `SMTP_*` values in the project's `.env`.
+
+Stop with `docker compose down`. Data is kept in a Docker volume;
+`docker compose down -v` deletes it and recreates the database from
+`database/schema.sql` on the next start.
