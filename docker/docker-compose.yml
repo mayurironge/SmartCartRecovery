@@ -6,8 +6,9 @@
 #   docker compose logs -f api       follow a service's logs
 #   docker compose down              stop everything (data is kept)
 #
-# API:     http://localhost:8000/docs
-# Airflow: http://localhost:8080
+# API:       http://localhost:8000/docs
+# Airflow:   http://localhost:8080
+# Dashboard: http://localhost:8501
 # Postgres from your machine: localhost:5433 (user/password: postgres)
 
 name: smartcart
@@ -27,6 +28,7 @@ services:
       # These run only on first start, while the data volume is empty.
       - ./postgres/00_create_airflow_db.sql:/docker-entrypoint-initdb.d/00_create_airflow_db.sql:ro
       - ../database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ../database/migrations/003_dashboard_reader.sql:/docker-entrypoint-initdb.d/02_dashboard_reader.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d smart_cart_recovery"]
       interval: 5s
@@ -51,6 +53,35 @@ services:
       RECOVERY_THRESHOLD_MINUTES: ${RECOVERY_THRESHOLD_MINUTES:-30}
     ports:
       - "127.0.0.1:8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  dashboard:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command:
+      - streamlit
+      - run
+      - dashboard/dashboard.py
+      - --server.port=8501
+      - --server.address=0.0.0.0
+      - --server.headless=true
+      - --browser.gatherUsageStats=false
+      - --theme.base=light
+      - --theme.primaryColor=#2a78d6
+      # Hide Streamlit's developer menu and Deploy button.
+      - --client.toolbarMode=viewer
+    # Read-only database login; the dashboard needs no other secrets.
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: smart_cart_recovery
+      DB_USER: dashboard_reader
+      DB_PASSWORD: dashboard_reader
+    ports:
+      - "127.0.0.1:8501:8501"
     depends_on:
       postgres:
         condition: service_healthy
