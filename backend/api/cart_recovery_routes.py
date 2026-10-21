@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from backend.config.settings import RECOVERY_THRESHOLD_MINUTES
@@ -17,10 +17,13 @@ router = APIRouter(
 # POST because detection creates recoveries and sends emails.
 @router.post("/detect")
 def detect_abandoned_carts(
+    # Omit to check every cart (scheduled sweep); set it to check one cart.
+    cart_id: int | None = Query(default=None, ge=1),
     db: Session = Depends(get_db),
 ):
 
     return CartRecoveryService.detect_abandoned_carts(
         db=db,
         threshold_minutes=RECOVERY_THRESHOLD_MINUTES,
+        cart_id=cart_id,
     )

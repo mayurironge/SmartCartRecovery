@@ -17,6 +17,7 @@ class CartRecoveryRepository:
     def get_abandoned_carts(
         db: Session,
         threshold_minutes: int = 30,
+        cart_id: int | None = None,
     ):
         cutoff_time = datetime.now(timezone.utc) - timedelta(
             minutes=threshold_minutes
@@ -48,8 +49,13 @@ class CartRecoveryRepository:
                 latest_events.c.last_activity <= cutoff_time,
                 has_items,
             )
-            .all()
         )
+
+        # Check one cart only, e.g. when its streaming timer runs out.
+        if cart_id is not None:
+            carts = carts.filter(Cart.cart_id == cart_id)
+
+        carts = carts.all()
 
         abandoned = []
 

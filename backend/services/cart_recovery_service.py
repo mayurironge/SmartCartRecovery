@@ -42,11 +42,13 @@ class CartRecoveryService:
     def detect_abandoned_carts(
         db: Session,
         threshold_minutes: int = 30,
+        cart_id: int | None = None,
     ):
         abandoned_carts = (
             CartRecoveryRepository.get_abandoned_carts(
                 db=db,
                 threshold_minutes=threshold_minutes,
+                cart_id=cart_id,
             )
         )
 

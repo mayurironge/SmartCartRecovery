@@ -26,3 +26,7 @@ CURRENCY_SYMBOL = os.getenv("CURRENCY_SYMBOL", "₹")
 
 # Time zone the dashboard shows dates in.
 DISPLAY_TIMEZONE = os.getenv("DISPLAY_TIMEZONE", "Asia/Kolkata")
+
+# Kafka is optional: without a bootstrap address, events are not streamed.
+KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS")
+CART_EVENTS_TOPIC = os.getenv("CART_EVENTS_TOPIC", "cart-events")
