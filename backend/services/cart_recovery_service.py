@@ -10,6 +10,11 @@ from backend.services.notification_sender import (
     EmailNotificationSender,
 )
 
+# After this many failed sends the recovery is marked EXPIRED.
+MAX_SEND_ATTEMPTS = 3
+
+RECOVERY_MESSAGE = "You left items in your cart."
+
 
 class CartRecoveryService:
 
@@ -32,12 +37,11 @@ class CartRecoveryService:
             last_activity = entry["last_activity"]
             recovery = entry["recovery"]
 
-            # Reuse an unfinished recovery instead of creating a duplicate.
+            # Reuse a pending recovery instead of creating a duplicate.
             if recovery is None:
                 recovery = CartRecoveryRepository.create_recovery(
                     db=db,
                     cart_id=cart.cart_id,
-                    recovery_status="DETECTED",
                 )
 
             # Reuse the existing notification when retrying.
@@ -52,27 +56,45 @@ class CartRecoveryService:
                     customer_id=cart.customer_id,
                     recovery_id=recovery.recovery_id,
                     channel="EMAIL",
-                    message="You left items in your cart.",
+                    message=RECOVERY_MESSAGE,
                 )
 
-            # Only attempt delivery if the notification has not been sent.
-            if not notification.sent:
-                email_sent = EmailNotificationSender.send_email(
-                    recipient_email=cart.customer.email,
-                    subject="You left items in your cart.",
-                    message="You left items in your cart.",
+            db.commit()
+
+            # Lock the recovery while sending so a concurrent run skips it
+            # instead of emailing the customer a second time.
+            recovery = CartRecoveryRepository.lock_pending_recovery(
+                db=db,
+                recovery_id=recovery.recovery_id,
+            )
+
+            if recovery is None:
+                db.rollback()
+                continue
+
+            if notification.sent or EmailNotificationSender.send_email(
+                recipient_email=cart.customer.email,
+                subject=RECOVERY_MESSAGE,
+                message=notification.message,
+            ):
+                NotificationRepository.mark_as_sent(
+                    db=db,
+                    notification=notification,
                 )
 
-                if email_sent:
-                    notification = NotificationRepository.mark_as_sent(
-                        db=db,
-                        notification=notification,
-                    )
+                CartRecoveryRepository.mark_as_notified(
+                    db=db,
+                    recovery=recovery,
+                )
 
-                    recovery = CartRecoveryRepository.mark_as_notified(
-                        db=db,
-                        recovery=recovery,
-                    )
+            else:
+                CartRecoveryRepository.record_failed_attempt(
+                    db=db,
+                    recovery=recovery,
+                    max_attempts=MAX_SEND_ATTEMPTS,
+                )
+
+            db.commit()
 
             detected.append(
                 {
@@ -81,6 +103,7 @@ class CartRecoveryService:
                     "customer_id": cart.customer_id,
                     "last_activity": last_activity,
                     "recovery_status": recovery.recovery_status,
+                    "attempts": recovery.attempts,
                     "notification_id": notification.notification_id,
                     "notification_sent": notification.sent,
                 }

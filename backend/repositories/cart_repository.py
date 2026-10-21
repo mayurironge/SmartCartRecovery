@@ -1,5 +1,8 @@
-from sqlalchemy.orm import Session
 from datetime import datetime
+
+from sqlalchemy.orm import Session
+
+from backend.constants import cart_status
 from backend.models.cart import Cart
 
 
@@ -13,12 +16,11 @@ class CartRepository:
 
         cart = Cart(
             customer_id=customer_id,
-            status="ACTIVE",
+            status=cart_status.ACTIVE,
         )
 
         db.add(cart)
-        db.commit()
-        db.refresh(cart)
+        db.flush()
 
         return cart
 
@@ -44,7 +46,7 @@ class CartRepository:
             db.query(Cart)
             .filter(
                 Cart.cart_id == cart_id,
-                Cart.status == "ACTIVE",
+                Cart.status == cart_status.ACTIVE,
             )
             .first()
         )
@@ -59,7 +61,7 @@ class CartRepository:
             db.query(Cart)
             .filter(
                 Cart.customer_id == customer_id,
-                Cart.status == "ACTIVE",
+                Cart.status == cart_status.ACTIVE,
             )
             .first()
         )
@@ -79,7 +81,5 @@ class CartRepository:
         cart: Cart,
     ):
         cart.updated_at = datetime.utcnow()
-        db.commit()
-        db.refresh(cart)
 
         return cart

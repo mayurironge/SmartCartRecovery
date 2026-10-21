@@ -1,7 +1,9 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from backend.repositories.cart_event_repository import CartEventRepository
+
+from backend.constants import cart_events, cart_status
 from backend.models.cart_item import CartItem
+from backend.repositories.cart_event_repository import CartEventRepository
 from backend.repositories.cart_item_repository import CartItemRepository
 from backend.repositories.cart_repository import CartRepository
 from backend.repositories.product_repository import ProductRepository
@@ -10,11 +12,9 @@ from backend.repositories.product_repository import ProductRepository
 class CartItemService:
 
     @staticmethod
-    def add_product(
+    def _get_active_cart(
         db: Session,
         cart_id: int,
-        product_id: int,
-        quantity: int,
     ):
 
         cart = CartRepository.get_cart(
@@ -27,6 +27,68 @@ class CartItemService:
                 status_code=404,
                 detail="Cart not found",
             )
+
+        if cart.status != cart_status.ACTIVE:
+            raise HTTPException(
+                status_code=400,
+                detail="Cart is no longer active",
+            )
+
+        return cart
+
+    @staticmethod
+    def _get_cart_item(
+        db: Session,
+        cart_id: int,
+        product_id: int,
+    ):
+
+        cart_item = CartItemRepository.get_cart_item(
+            db,
+            cart_id,
+            product_id,
+        )
+
+        if not cart_item:
+            raise HTTPException(
+                status_code=404,
+                detail="Product not found in cart",
+            )
+
+        return cart_item
+
+    @staticmethod
+    def _record_change(
+        db: Session,
+        cart,
+        event_type: str,
+    ):
+
+        CartRepository.touch_cart(
+            db=db,
+            cart=cart,
+        )
+
+        CartEventRepository.create_event(
+            db=db,
+            cart_id=cart.cart_id,
+            event_type=event_type,
+        )
+
+        db.commit()
+
+    @staticmethod
+    def add_product(
+        db: Session,
+        cart_id: int,
+        product_id: int,
+        quantity: int,
+    ):
+
+        cart = CartItemService._get_active_cart(
+            db,
+            cart_id,
+        )
 
         product = ProductRepository.get_product(
             db,
@@ -46,53 +108,34 @@ class CartItemService:
         )
 
         if existing:
-            existing.quantity += quantity
-
-            CartItemRepository.update_item(
+            CartItemRepository.increase_quantity(
                 db,
                 existing,
+                quantity,
             )
+            message = "Product quantity updated successfully"
 
-            CartRepository.touch_cart(
-                db=db,
-                cart=cart,
+        else:
+            CartItemRepository.add_item(
+                db,
+                CartItem(
+                    cart_id=cart_id,
+                    product_id=product_id,
+                    quantity=quantity,
+                ),
             )
+            message = "Product added to cart successfully"
 
-            CartEventRepository.create_event(
-                db=db,
-                cart_id=cart.cart_id,
-                event_type="PRODUCT_ADDED",
-            )
-
-            return {
-                "message": "Product quantity updated successfully"
-            }
-
-        cart_item = CartItem(
-            cart_id=cart_id,
-            product_id=product_id,
-            quantity=quantity,
-        )
-
-        CartItemRepository.add_item(
+        CartItemService._record_change(
             db,
-            cart_item,
-        )
-
-        CartRepository.touch_cart(
-            db=db,
-            cart=cart,
-        )
-
-        CartEventRepository.create_event(
-            db=db,
-            cart_id=cart.cart_id,
-            event_type="PRODUCT_ADDED",
+            cart,
+            cart_events.PRODUCT_ADDED,
         )
 
         return {
-            "message": "Product added to cart successfully"
+            "message": message
         }
+
     @staticmethod
     def remove_product(
         db: Session,
@@ -100,70 +143,41 @@ class CartItemService:
         product_id: int,
     ):
 
-        cart = CartRepository.get_cart(
+        cart = CartItemService._get_active_cart(
             db,
             cart_id,
         )
 
-        if not cart:
-            raise HTTPException(
-                status_code=404,
-                detail="Cart not found",
-            )
-
-        cart_item = CartItemRepository.get_cart_item(
+        cart_item = CartItemService._get_cart_item(
             db,
             cart_id,
             product_id,
         )
 
-        if not cart_item:
-            raise HTTPException(
-                status_code=404,
-                detail="Product not found in cart",
-            )
-
         if cart_item.quantity > 1:
-
             CartItemRepository.decrement_quantity(
                 db,
                 cart_item,
             )
+            message = "Product quantity decreased"
 
-            CartRepository.touch_cart(
-                db=db,
-                cart=cart,
+        else:
+            CartItemRepository.delete_item(
+                db,
+                cart_item,
             )
+            message = "Product removed from cart"
 
-            CartEventRepository.create_event(
-                db=db,
-                cart_id=cart_id,
-                event_type="PRODUCT_REMOVED",
-            )
-
-            return {
-                "message": "Product quantity decreased"
-            }
-
-        CartItemRepository.delete_item(
+        CartItemService._record_change(
             db,
-            cart_item,
-        )
-
-        CartRepository.touch_cart(
-            db=db,
-            cart=cart,
-        )
-
-        CartEventRepository.create_event(
-            db=db,
-            cart_id=cart_id,
-            event_type="PRODUCT_REMOVED",
+            cart,
+            cart_events.PRODUCT_REMOVED,
         )
 
         return {
-            "message": "Product removed from cart"
+            "message": message
         }
+
     @staticmethod
     def update_quantity(
         db: Session,
@@ -172,28 +186,16 @@ class CartItemService:
         quantity: int,
     ):
 
-        cart = CartRepository.get_cart(
+        cart = CartItemService._get_active_cart(
             db,
             cart_id,
         )
 
-        if not cart:
-            raise HTTPException(
-                status_code=404,
-                detail="Cart not found",
-            )
-
-        cart_item = CartItemRepository.get_cart_item(
+        cart_item = CartItemService._get_cart_item(
             db,
             cart_id,
             product_id,
         )
-
-        if not cart_item:
-            raise HTTPException(
-                status_code=404,
-                detail="Product not found in cart",
-            )
 
         CartItemRepository.update_quantity(
             db,
@@ -201,55 +203,36 @@ class CartItemService:
             quantity,
         )
 
-        CartRepository.touch_cart(
-            db=db,
-            cart=cart,
-        )
-
-        CartEventRepository.create_event(
-            db=db,
-            cart_id=cart_id,
-            event_type="QUANTITY_UPDATED",
+        CartItemService._record_change(
+            db,
+            cart,
+            cart_events.QUANTITY_UPDATED,
         )
 
         return {
             "message": "Quantity updated successfully"
         }
 
-
-   
-    
     @staticmethod
     def empty_cart(
         db: Session,
         cart_id: int,
     ):
 
-        cart = CartRepository.get_cart(
+        cart = CartItemService._get_active_cart(
             db,
             cart_id,
         )
-
-        if not cart:
-            raise HTTPException(
-                status_code=404,
-                detail="Cart not found",
-            )
 
         CartItemRepository.empty_cart(
             db,
             cart_id,
         )
 
-        CartRepository.touch_cart(
-            db=db,
-            cart=cart,
-        )
-
-        CartEventRepository.create_event(
-            db=db,
-            cart_id=cart_id,
-            event_type="CART_EMPTIED",
+        CartItemService._record_change(
+            db,
+            cart,
+            cart_events.CART_EMPTIED,
         )
 
         return {
