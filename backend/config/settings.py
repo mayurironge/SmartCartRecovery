@@ -23,3 +23,6 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 
 # Shown before prices in recovery emails.
 CURRENCY_SYMBOL = os.getenv("CURRENCY_SYMBOL", "₹")
+
+# Time zone the dashboard shows dates in.
+DISPLAY_TIMEZONE = os.getenv("DISPLAY_TIMEZONE", "Asia/Kolkata")
