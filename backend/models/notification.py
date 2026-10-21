@@ -40,6 +40,11 @@ class Notification(Base):
         nullable=True,
     )
 
+    subject: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
     message: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,

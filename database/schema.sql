@@ -80,6 +80,7 @@ CREATE TABLE notifications (
 	customer_id INTEGER,
 	recovery_id INTEGER,
 	channel VARCHAR,
+	subject VARCHAR(255),
 	message TEXT,
 	sent BOOLEAN,
 	created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,

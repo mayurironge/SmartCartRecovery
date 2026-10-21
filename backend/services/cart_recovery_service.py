@@ -1,5 +1,7 @@
 from sqlalchemy.orm import Session
 
+from genai.email_generator import generate_recovery_email
+
 from backend.repositories.cart_recovery_repository import (
     CartRecoveryRepository,
 )
@@ -13,10 +15,28 @@ from backend.services.notification_sender import (
 # After this many failed sends the recovery is marked EXPIRED.
 MAX_SEND_ATTEMPTS = 3
 
-RECOVERY_MESSAGE = "You left items in your cart."
+# Used for notifications created before subjects were stored.
+DEFAULT_SUBJECT = "You left items in your cart."
 
 
 class CartRecoveryService:
+
+    @staticmethod
+    def _write_email(cart):
+        items = [
+            {
+                "product_name": item.product.product_name,
+                "quantity": item.quantity,
+                "subtotal": float(item.product.price) * item.quantity,
+            }
+            for item in cart.items
+        ]
+
+        return generate_recovery_email(
+            first_name=cart.customer.first_name,
+            items=items,
+            total=sum(item["subtotal"] for item in items),
+        )
 
     @staticmethod
     def detect_abandoned_carts(
@@ -44,19 +64,26 @@ class CartRecoveryService:
                     cart_id=cart.cart_id,
                 )
 
-            # Reuse the existing notification when retrying.
+                # Save before the slow AI call so other runs aren't blocked.
+                db.commit()
+
+            # Reuse the existing notification when retrying, so the email
+            # is only written once.
             notification = NotificationRepository.get_by_recovery(
                 db=db,
                 recovery_id=recovery.recovery_id,
             )
 
             if notification is None:
+                subject, body, _ = CartRecoveryService._write_email(cart)
+
                 notification = NotificationRepository.create_notification(
                     db=db,
                     customer_id=cart.customer_id,
                     recovery_id=recovery.recovery_id,
                     channel="EMAIL",
-                    message=RECOVERY_MESSAGE,
+                    subject=subject,
+                    message=body,
                 )
 
             db.commit()
@@ -74,7 +101,7 @@ class CartRecoveryService:
 
             if notification.sent or EmailNotificationSender.send_email(
                 recipient_email=cart.customer.email,
-                subject=RECOVERY_MESSAGE,
+                subject=notification.subject or DEFAULT_SUBJECT,
                 message=notification.message,
             ):
                 NotificationRepository.mark_as_sent(
